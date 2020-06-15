@@ -132,3 +132,6 @@ dmypy.json
 .idea/
 *.swp
 *.swo
+
+# settings files
+settings.yml
