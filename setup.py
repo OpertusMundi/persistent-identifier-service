@@ -11,7 +11,7 @@ setup(
     description='',
     install_requires=[
         'fastapi==0.55.1',
-        'uvicorn==0.11.5',
+        'uvicorn==0.12.3',
         'SQLAlchemy==1.3.17',
         'PyYAML==5.3.1',
         'pydantic==1.5.1',
