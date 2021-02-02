@@ -111,7 +111,7 @@ class TopioAssetORM(Base):
 
     @hybrid_property
     def topio_id(self):
-        return f'{self.user_ns}.{self.asset_type}.{self._id}'
+        return f'topio.{self.user_ns}.{self._id}.{self.asset_type}'
 
 
 class TopioAssetCreate(pydantic.BaseModel):
