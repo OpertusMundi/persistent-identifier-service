@@ -18,26 +18,26 @@ def load_default_configuration():
     return cfg
 
 
-def get_db():
+async def get_db():
     from ompid.db import SessionLocal
     db = SessionLocal()
+
     try:
         yield db
     finally:
         db.close()
 
+app = FastAPI()
 
+
+@app.on_event('startup')
 def init_tables():
     import ompid.db
     Base.metadata.create_all(ompid.db.engine)
 
 
-app = FastAPI()
-init_tables()
-
-
 @app.post('/users/register', response_model=TopioUser)
-def register_user(topio_user: TopioUserCreate, db: Session = Depends(get_db)):
+async def register_user(topio_user: TopioUserCreate, db: Session = Depends(get_db)):
     topio_user_orm = TopioUserORM(
         name=topio_user.name, user_namespace=topio_user.user_namespace)
 
@@ -49,7 +49,7 @@ def register_user(topio_user: TopioUserCreate, db: Session = Depends(get_db)):
 
 
 @app.get('/users/{topio_user_id}', response_model=TopioUser)
-def get_user_info(topio_user_id: int, db: Session = Depends(get_db)):
+async def get_user_info(topio_user_id: int, db: Session = Depends(get_db)):
     topio_user_orm = \
         db.query(TopioUserORM).filter(TopioUserORM.id == topio_user_id).first()
 
@@ -57,7 +57,7 @@ def get_user_info(topio_user_id: int, db: Session = Depends(get_db)):
 
 
 @app.post('/asset_types/register', response_model=TopioAssetType)
-def register_asset_type(
+async def register_asset_type(
         topio_asset_type: TopioAssetType, db: Session = Depends(get_db)):
 
     topio_asset_type_orm = TopioAssetTypeORM(
@@ -71,7 +71,7 @@ def register_asset_type(
 
 
 @app.get('/asset_types/{topio_asset_type_id}', response_model=TopioAssetType)
-def get_asset_namespace_info(
+async def get_asset_namespace_info(
         topio_asset_type_id: str, db: Session = Depends(get_db)):
 
     topio_asset_type_orm = db\
@@ -83,12 +83,13 @@ def get_asset_namespace_info(
 
 
 @app.get('/asset_types/', response_model=List[TopioAssetType])
-def get_asset_types(db: Session = Depends(get_db)):
+async def get_asset_types(db: Session = Depends(get_db)):
+    print(f'db inside method: {db}')
     return db.query(TopioAssetTypeORM).all()
 
 
 @app.post('/assets/register', response_model=TopioAsset)
-def register_asset(topio_asset: TopioAssetCreate, db: Session = Depends(get_db)):
+async def register_asset(topio_asset: TopioAssetCreate, db: Session = Depends(get_db)):
     topio_asset_orm = TopioAssetORM(
         local_id=topio_asset.local_id,
         owner_id=topio_asset.owner_id,
@@ -103,7 +104,7 @@ def register_asset(topio_asset: TopioAssetCreate, db: Session = Depends(get_db))
 
 
 @app.post('/assets/topio_id', response_model=str)
-def get_topio_id(
+async def get_topio_id(
         asset_info: TopioAssetCreate,
         db: Session = Depends(get_db)):
 
@@ -118,7 +119,7 @@ def get_topio_id(
 
 
 @app.post('/assets/', response_model=List[TopioAsset])
-def get_users_assets(user: TopioUserQuery, db: Session = Depends(get_db)):
+async def get_users_assets(user: TopioUserQuery, db: Session = Depends(get_db)):
     return db\
         .query(TopioAssetORM)\
         .filter(TopioAssetORM.owner_id == user.user_id)\
