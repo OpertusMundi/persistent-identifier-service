@@ -100,7 +100,7 @@ class TopioAssetORM(Base):
     """
     __tablename__ = 'topio_asset'
 
-    _id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     local_id = Column(String)
     owner_id = Column(Integer, ForeignKey('topio_user.id'))
     asset_type = Column(String, ForeignKey('topio_asset_type.id'))
@@ -111,7 +111,7 @@ class TopioAssetORM(Base):
 
     @hybrid_property
     def topio_id(self):
-        return f'topio.{self.user_ns}.{self._id}.{self.asset_type}'
+        return f'topio.{self.user_ns}.{self.id}.{self.asset_type}'
 
 
 class TopioAssetCreate(pydantic.BaseModel):
@@ -122,7 +122,7 @@ class TopioAssetCreate(pydantic.BaseModel):
 
 
 class TopioAsset(TopioAssetCreate):
-    _id: int
+    id: int
     topio_id: str
 
     class Config:
