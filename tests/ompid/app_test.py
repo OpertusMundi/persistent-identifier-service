@@ -232,3 +232,105 @@ def test_asset_types_list(postgresql: connection):
 
     assert assets_list[2]['id'] == asset_type_3_id
     assert assets_list[2]['description'] == asset_type_3_description
+
+
+def test_assets_register(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    # register asset owner
+    owner_name = 'User ABC'
+    owner_namespace = 'abc'
+    response = client.post(
+        '/users/register',
+        json={'name': owner_name, 'user_namespace': owner_namespace})
+    owner_id = json.loads(response.content)['id']
+
+    # register asset type
+    asset_type_id = 'file'
+    asset_type_description = 'Data assets provided as downloadable file'
+
+    client.post(
+        '/asset_types/register',
+        json={'id': asset_type_id, 'description': asset_type_description}
+    )
+
+    asset_1_local_id = 'hdfs://foo.bar.ttl'
+    asset_1_description = 'A Turtle HDFS file'
+
+    response = client.post(
+        '/assets/register',
+        json={
+            'local_id': asset_1_local_id,
+            'owner_id': owner_id,
+            'asset_type': asset_type_id,
+            'description': asset_1_description})
+
+    assert response.status_code == 200
+
+    # {
+    #   "local_id":"hdfs://foo.bar.ttl",
+    #   "owner_id":1,
+    #   "asset_type":"file",
+    #   "description":"A Turtle HDFS file",
+    #   "topio_id":"topio.abc.1.file"
+    # }
+    asset_1_topio_id = json.loads(response.content)['topio_id']
+    asset_1_id = json.loads(response.content)['id']
+
+    assert asset_1_topio_id == \
+           f'topio.{owner_namespace}.{asset_1_id}.{asset_type_id}'
+
+    cur: cursor = postgresql.cursor()
+    cur.execute(
+        f'SELECT * FROM topio_asset WHERE id=%s;',
+        (asset_1_id,))
+    results = cur.fetchall()
+    cur.close()
+
+    assert len(results) == 1
+
+    # [(1, 'hdfs://foo.bar.ttl', 1, 'file', 'A Turtle HDFS file')]
+    assert results[0][0] == asset_1_id
+    assert results[0][1] == asset_1_local_id
+    assert results[0][2] == owner_id
+    assert results[0][3] == asset_type_id
+    assert results[0][4] == asset_1_description
+
+    # asset without local ID and description
+    response = client.post(
+        '/assets/register',
+        json={
+            'owner_id': owner_id,
+            'asset_type': asset_type_id})
+
+    assert response.status_code == 200
+
+    # {
+    #   "local_id":null,
+    #   "owner_id":1,
+    #   "asset_type":"file",
+    #   "description":null,
+    #   "id":2,
+    #   "topio_id":"topio.abc.2.file"
+    # }
+    asset_2_topio_id = json.loads(response.content)['topio_id']
+    asset_2_id = json.loads(response.content)['id']
+
+    assert asset_2_topio_id == \
+           f'topio.{owner_namespace}.{asset_2_id}.{asset_type_id}'
+
+    cur: cursor = postgresql.cursor()
+    cur.execute(
+        f'SELECT * FROM topio_asset WHERE id=%s;',
+        (asset_2_id,))
+    results = cur.fetchall()
+    cur.close()
+
+    assert len(results) == 1
+
+    # [(2, None, 1, 'file', None)]
+    assert results[0][0] == asset_2_id
+    assert results[0][1] is None
+    assert results[0][2] == owner_id
+    assert results[0][3] == asset_type_id
+    assert results[0][4] is None
