@@ -146,3 +146,27 @@ def test_asset_types_register(postgresql: connection):
     results = cur.fetchall()
     cur.close()
     assert len(results) == 0
+
+
+def test_asset_types_info(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    asset_type_id = 'file'
+    asset_type_description = 'Data assets provided as downloadable file'
+
+    client.post(
+        '/asset_types/register',
+        json={'id': asset_type_id, 'description': asset_type_description}
+    )
+
+    response = client.get(
+        f'/asset_types/{asset_type_id}',
+        json={'id': asset_type_id}
+    )
+
+    assert response.status_code == 200
+
+    asset_info_data = json.loads(response.content)
+
+    assert asset_info_data['id'] == asset_type_id
+    assert asset_info_data['description'] == asset_type_description
