@@ -78,3 +78,27 @@ def test_users_register(postgresql: connection):
     results = cur.fetchall()
     cur.close()
     assert len(results) == 0
+
+
+def test_users_info(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    user_name = 'User ABC'
+    user_namespace = 'abc'
+    response = client.post(
+        '/users/register',
+        json={'name': user_name, 'user_namespace': user_namespace})
+    user_id: int = json.loads(response.content)['id']
+
+    response = client.get(
+        f'/users/{user_id}',
+        json={'topio_user_id': user_id})
+
+    assert response.status_code == 200
+
+    # {"name":"User ABC","user_namespace":"abc","id":1}
+    user_info_data = json.loads(response.content)
+
+    assert user_info_data['name'] == user_name
+    assert user_info_data['user_namespace'] == user_namespace
+    assert user_info_data['id'] == user_id
