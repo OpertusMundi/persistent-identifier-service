@@ -84,7 +84,6 @@ async def get_asset_namespace_info(
 
 @app.get('/asset_types/', response_model=List[TopioAssetType])
 async def get_asset_types(db: Session = Depends(get_db)):
-    print(f'db inside method: {db}')
     return db.query(TopioAssetTypeORM).all()
 
 
