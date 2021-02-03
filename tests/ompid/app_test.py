@@ -170,3 +170,65 @@ def test_asset_types_info(postgresql: connection):
 
     assert asset_info_data['id'] == asset_type_id
     assert asset_info_data['description'] == asset_type_description
+
+
+def test_asset_types_list(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    asset_type_1_id = 'file'
+    asset_type_1_description = 'Data assets provided as downloadable file'
+
+    client.post(
+        '/asset_types/register',
+        json={'id': asset_type_1_id, 'description': asset_type_1_description}
+    )
+
+    asset_type_2_id = 'api'
+    asset_type_2_description = \
+        'Data that is provided via a well defined application programming ' \
+        'interface'
+
+    client.post(
+        '/asset_types/register',
+        json={'id': asset_type_2_id, 'description': asset_type_2_description}
+    )
+
+    asset_type_3_id = 'stream'
+    asset_type_3_description = \
+        'Data that is constantly updated and thus provided as a series of ' \
+        'data values'
+
+    client.post(
+        '/asset_types/register',
+        json={'id': asset_type_3_id, 'description': asset_type_3_description}
+    )
+
+    response = client.get('/asset_types/')
+
+    assert response.status_code == 200
+
+    assets_list = json.loads(response.content)
+
+    assert len(assets_list) == 3
+
+    # [{
+    #       'id': 'file',
+    #       'description': 'Data assets provided as downloadable file'
+    #  },
+    #  {
+    #       'id': 'api',
+    #       'description': 'Data that is provided via a well defined ...'
+    #  },
+    #  {
+    #       'id': 'stream',
+    #       'description': 'Data that is constantly updated and thus ...'
+    #  }
+    # ]
+    assert assets_list[0]['id'] == asset_type_1_id
+    assert assets_list[0]['description'] == asset_type_1_description
+
+    assert assets_list[1]['id'] == asset_type_2_id
+    assert assets_list[1]['description'] == asset_type_2_description
+
+    assert assets_list[2]['id'] == asset_type_3_id
+    assert assets_list[2]['description'] == asset_type_3_description
