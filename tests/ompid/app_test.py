@@ -102,3 +102,47 @@ def test_users_info(postgresql: connection):
     assert user_info_data['name'] == user_name
     assert user_info_data['user_namespace'] == user_namespace
     assert user_info_data['id'] == user_id
+
+
+def test_asset_types_register(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    # normal asset type registration
+    asset_type_id = 'file'
+    asset_type_description = 'Data assets provided as downloadable file'
+
+    response = client.post(
+        '/asset_types/register',
+        json={'id': asset_type_id, 'description': asset_type_description}
+    )
+
+    assert response.status_code == 200
+
+    cur: cursor = postgresql.cursor()
+    cur.execute(
+        f'SELECT * FROM topio_asset_type WHERE id=%s;',
+        (asset_type_id,))
+    results = cur.fetchall()
+    cur.close()
+    assert len(results) == 1
+    assert results[0][1] == asset_type_description
+
+    # registration of asset type with broken asset type ID (contains spaces)
+    asset_type_id = 'this is broken'
+    asset_type_description = \
+        'This is a broken asset type with spaces in its identifier string'
+
+    response = client.post(
+        '/asset_types/register',
+        json={'id': asset_type_id, 'description': asset_type_description}
+    )
+
+    assert response.status_code == 422
+
+    cur: cursor = postgresql.cursor()
+    cur.execute(
+        f'SELECT * FROM topio_asset_type WHERE id=%s;',
+        (asset_type_id,))
+    results = cur.fetchall()
+    cur.close()
+    assert len(results) == 0
