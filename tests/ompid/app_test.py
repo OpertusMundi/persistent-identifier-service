@@ -338,3 +338,72 @@ def test_assets_register(postgresql: connection):
     assert results[0][2] == owner_id
     assert results[0][3] == asset_type_id
     assert results[0][4] is None
+
+
+def test_assets_topio_id(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    # register asset owner
+    owner_name = 'User ABC'
+    owner_namespace = 'abc'
+    response = client.post(
+        '/users/register',
+        json={'name': owner_name, 'user_namespace': owner_namespace})
+    owner_id = json.loads(response.content)['id']
+
+    # register asset type
+    asset_type_id = 'file'
+    asset_type_description = 'Data assets provided as downloadable file'
+
+    client.post(
+        '/asset_types/register',
+        json={'id': asset_type_id, 'description': asset_type_description})
+
+    # This asset should be ignored by the get_topio_id method as it does not
+    # have a local ID. So local-ID-to-topio-ID doesn't make sense here.
+    client.post(
+        '/assets/register',
+        json={'owner_id': owner_id, 'asset_type': asset_type_id})
+
+    # Asset with proper local ID which should be considered by the get_topio_id
+    # method
+    asset_2_local_id = 'hdfs://foo.bar.ttl'
+    asset_2_description = 'A Turtle HDFS file'
+    response = client.post(
+        '/assets/register',
+        json={
+            'owner_id': owner_id,
+            'asset_type': asset_type_id,
+            'local_id': asset_2_local_id,
+            'description': asset_2_description})
+
+    asset_2_id = json.loads(response.content)['id']
+    del response
+
+    # Calling /assets/topio_id with an undefined local ID should always return
+    # a client error
+    response = client.get(
+        '/assets/topio_id',
+        json={
+            'owner_id': owner_id,
+            'asset_type': asset_type_id})
+
+    assert response.status_code == 400
+
+    # Calling /assets/topio_id providing a local ID should return the correct
+    # result
+    response = client.get(
+        '/assets/topio_id',
+        json={
+            'owner_id': owner_id,
+            'asset_type': asset_type_id,
+            'local_id': asset_2_local_id})
+
+    assert response.status_code == 200
+
+    returned_topio_id = json.loads(response.content)
+
+    assert returned_topio_id == TOPIO_ID_SCHEMA.format(**{
+        'owner_namespace': owner_namespace,
+        'asset_id': asset_2_id,
+        'asset_type': asset_type_id})
