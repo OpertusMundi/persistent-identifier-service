@@ -8,6 +8,7 @@ from starlette.testclient import TestClient
 import ompid
 import ompid.db
 from ompid import app, Base
+from ompid.models import TOPIO_ID_SCHEMA
 
 
 def _init_test_client(postgresql: connection) -> TestClient:
@@ -251,8 +252,7 @@ def test_assets_register(postgresql: connection):
 
     client.post(
         '/asset_types/register',
-        json={'id': asset_type_id, 'description': asset_type_description}
-    )
+        json={'id': asset_type_id, 'description': asset_type_description})
 
     asset_1_local_id = 'hdfs://foo.bar.ttl'
     asset_1_description = 'A Turtle HDFS file'
@@ -278,7 +278,10 @@ def test_assets_register(postgresql: connection):
     asset_1_id = json.loads(response.content)['id']
 
     assert asset_1_topio_id == \
-           f'topio.{owner_namespace}.{asset_1_id}.{asset_type_id}'
+        TOPIO_ID_SCHEMA.format(**{
+            'owner_namespace': owner_namespace,
+            'asset_id': asset_1_id,
+            'asset_type': asset_type_id})
 
     cur: cursor = postgresql.cursor()
     cur.execute(
@@ -299,9 +302,7 @@ def test_assets_register(postgresql: connection):
     # asset without local ID and description
     response = client.post(
         '/assets/register',
-        json={
-            'owner_id': owner_id,
-            'asset_type': asset_type_id})
+        json={'owner_id': owner_id, 'asset_type': asset_type_id})
 
     assert response.status_code == 200
 
@@ -317,7 +318,10 @@ def test_assets_register(postgresql: connection):
     asset_2_id = json.loads(response.content)['id']
 
     assert asset_2_topio_id == \
-           f'topio.{owner_namespace}.{asset_2_id}.{asset_type_id}'
+        TOPIO_ID_SCHEMA.format(**{
+            'owner_namespace': owner_namespace,
+            'asset_id': asset_2_id,
+            'asset_type': asset_type_id})
 
     cur: cursor = postgresql.cursor()
     cur.execute(

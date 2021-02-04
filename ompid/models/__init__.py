@@ -12,6 +12,8 @@ from sqlalchemy.sql.sqltypes import Integer, String
 
 Base = declarative_base()
 
+TOPIO_ID_SCHEMA = 'topio.{owner_namespace}.{asset_id}.{asset_type}'
+
 
 class TopioUserORM(Base):
     """
@@ -111,7 +113,10 @@ class TopioAssetORM(Base):
 
     @hybrid_property
     def topio_id(self):
-        return f'topio.{self.user_ns}.{self.id}.{self.asset_type}'
+        return TOPIO_ID_SCHEMA.format(**{
+            'owner_namespace': self.user_ns,
+            'asset_id': self.id,
+            'asset_type': self.asset_type})
 
 
 class TopioAssetCreate(pydantic.BaseModel):
