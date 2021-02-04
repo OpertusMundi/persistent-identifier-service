@@ -1,18 +1,34 @@
 import re
-from typing import Optional
+from typing import Optional, Tuple
 
 import pydantic
 from pydantic import validator
-from sqlalchemy import Column, ForeignKey
-from sqlalchemy import select, func
+from sqlalchemy import Column, ForeignKey, func
+from sqlalchemy import select
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import column_property
+from sqlalchemy.orm import column_property, ColumnProperty
 from sqlalchemy.sql.sqltypes import Integer, String
 
 Base = declarative_base()
 
+# ------------ topio ID pattern related constants and methods -----------------
 TOPIO_ID_SCHEMA = 'topio.{owner_namespace}.{asset_id}.{asset_type}'
+
+
+def topio_id_to_parts(topio_id: str) -> Tuple[int, str, str]:
+    _, owner_ns, asset_id, asset_type = topio_id.split('.')
+    asset_id = int(asset_id)
+    return asset_id, asset_type, owner_ns
+
+
+def build_topio_id_column_property(
+        owner_namespace: ColumnProperty,
+        asset_id: int,
+        asset_type: str):
+
+    return 'topio.' + owner_namespace.expression + '.' + \
+        func.cast(asset_id, String) + '.' + asset_type
+# -----------------------------------------------------------------------------
 
 
 class TopioUserORM(Base):
@@ -107,16 +123,13 @@ class TopioAssetORM(Base):
     owner_id = Column(Integer, ForeignKey('topio_user.id'))
     asset_type = Column(String, ForeignKey('topio_asset_type.id'))
     description = Column(String)
-    user_ns = column_property(
+
+    owner_namespace = column_property(
         select([TopioUserORM.user_namespace])
         .where(TopioUserORM.id == owner_id).as_scalar())
 
-    @hybrid_property
-    def topio_id(self):
-        return TOPIO_ID_SCHEMA.format(**{
-            'owner_namespace': self.user_ns,
-            'asset_id': self.id,
-            'asset_type': self.asset_type})
+    topio_id = column_property(
+        build_topio_id_column_property(owner_namespace, id, asset_type))
 
 
 class TopioAssetCreate(pydantic.BaseModel):
