@@ -407,3 +407,73 @@ def test_assets_topio_id(postgresql: connection):
         'owner_namespace': owner_namespace,
         'asset_id': asset_2_id,
         'asset_type': asset_type_id})
+
+
+def test_assets_custom_id(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    # register asset owner
+    owner_name = 'User ABC'
+    owner_namespace = 'abc'
+    response = client.post(
+        '/users/register',
+        json={'name': owner_name, 'user_namespace': owner_namespace})
+    owner_id = json.loads(response.content)['id']
+
+    # register asset type
+    asset_type_id = 'file'
+    asset_type_description = 'Data assets provided as downloadable file'
+
+    client.post(
+        '/asset_types/register',
+        json={'id': asset_type_id, 'description': asset_type_description})
+
+    # Asset without a local ID
+    response = client.post(
+        '/assets/register',
+        json={'owner_id': owner_id, 'asset_type': asset_type_id})
+
+    asset_1_id = json.loads(response.content)['id']
+    asset_1_topio_id = TOPIO_ID_SCHEMA.format(**{
+        'owner_namespace': owner_namespace,
+        'asset_id': asset_1_id,
+        'asset_type': asset_type_id})
+
+    del response
+
+    # Asset with proper local ID
+    asset_2_local_id = 'hdfs://foo.bar.ttl'
+    asset_2_description = 'A Turtle HDFS file'
+    response = client.post(
+        '/assets/register',
+        json={
+            'owner_id': owner_id,
+            'asset_type': asset_type_id,
+            'local_id': asset_2_local_id,
+            'description': asset_2_description})
+
+    asset_2_id = json.loads(response.content)['id']
+
+    asset_2_topio_id = TOPIO_ID_SCHEMA.format(**{
+        'owner_namespace': owner_namespace,
+        'asset_id': asset_2_id,
+        'asset_type': asset_type_id})
+
+    del response
+
+    response = client.get(
+        '/assets/custom_id',
+        json={'topio_id': asset_1_topio_id})
+
+    assert response.status_code == 404  # as there is no local ID for asset 1
+
+    del response
+
+    response = client.get(
+        '/assets/custom_id',
+        json={'topio_id': asset_2_topio_id})
+
+    assert response.status_code == 200
+
+    returned_local_id = json.loads(response.content)
+    assert returned_local_id == asset_2_local_id

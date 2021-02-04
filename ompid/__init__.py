@@ -134,17 +134,24 @@ async def get_topio_id(
     return asset.topio_id
 
 
-@app.post('/assets/custom_id', response_model=str)
-async def get_custom_id(
-        asset_info: TopioAsset,
-        db: Session = Depends(get_db)):
+@app.get('/assets/custom_id', response_model=str)
+async def get_custom_id(query: dict, db: Session = Depends(get_db)):
+    topio_id: str = query.get('topio_id')
 
-    asset = db \
-        .query(TopioAssetORM) \
-        .filter(TopioAssetORM.owner_id == asset_info.owner_id,
-                TopioAssetORM.asset_type == asset_info.asset_type,
-                TopioAssetORM.topio_id == asset_info.topio_id) \
-        .first()
+    if topio_id is None:
+        asset = None
+    else:
+        asset = db\
+            .query(TopioAssetORM)\
+            .filter(
+                TopioAssetORM.topio_id == topio_id,
+                TopioAssetORM.local_id != None)\
+            .first()
+
+    if asset is None:
+        raise HTTPException(
+            404,
+            f'No custom ID found for topio ID {topio_id}')
 
     return asset.local_id
 
