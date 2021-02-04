@@ -2,7 +2,7 @@ import os
 from typing import List
 
 import yaml
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.params import Depends
 from sqlalchemy.orm import Session
 
@@ -102,19 +102,51 @@ async def register_asset(topio_asset: TopioAssetCreate, db: Session = Depends(ge
     return topio_asset_orm
 
 
-@app.post('/assets/topio_id', response_model=str)
+@app.get('/assets/topio_id', response_model=str)
 async def get_topio_id(
         asset_info: TopioAssetCreate,
         db: Session = Depends(get_db)):
+    """
+    Returns the topio ID for a given asset identified by
+    - the asset owner ID
+    - the asset type
+    - the asset's local ID (e.g. hdfs://foo/bar, postgresql://user:pw@dbhost/db)
+
+    :param asset_info: basic asset information which has to comprise the asset
+        owner ID, the asset type and the asset's local ID
+    :param db: database session (will be provided by FastAPI's dependency
+        injection mechanism.
+    :return: A string containing the topio ID of the respective asset
+    """
+
+    if asset_info.local_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail='No asset local ID provided')
 
     asset = db\
         .query(TopioAssetORM)\
-        .filter(TopioAssetORM.owner_id == asset_info.owner_id and
-                TopioAssetORM.asset_type == asset_info.asset_type and
+        .filter(TopioAssetORM.owner_id == asset_info.owner_id,
+                TopioAssetORM.asset_type == asset_info.asset_type,
                 TopioAssetORM.local_id == asset_info.local_id)\
         .first()
 
     return asset.topio_id
+
+
+@app.post('/assets/custom_id', response_model=str)
+async def get_custom_id(
+        asset_info: TopioAsset,
+        db: Session = Depends(get_db)):
+
+    asset = db \
+        .query(TopioAssetORM) \
+        .filter(TopioAssetORM.owner_id == asset_info.owner_id,
+                TopioAssetORM.asset_type == asset_info.asset_type,
+                TopioAssetORM.topio_id == asset_info.topio_id) \
+        .first()
+
+    return asset.local_id
 
 
 @app.post('/assets/', response_model=List[TopioAsset])
