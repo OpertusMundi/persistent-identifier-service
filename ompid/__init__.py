@@ -156,7 +156,7 @@ async def get_custom_id(query: dict, db: Session = Depends(get_db)):
     return asset.local_id
 
 
-@app.post('/assets/', response_model=List[TopioAsset])
+@app.get('/assets/', response_model=List[TopioAsset])
 async def get_users_assets(user: TopioUserQuery, db: Session = Depends(get_db)):
     return db\
         .query(TopioAssetORM)\

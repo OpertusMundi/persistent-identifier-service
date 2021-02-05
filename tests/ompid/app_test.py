@@ -477,3 +477,137 @@ def test_assets_custom_id(postgresql: connection):
 
     returned_local_id = json.loads(response.content)
     assert returned_local_id == asset_2_local_id
+
+
+def test_assets_list(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    # register asset owner
+    owner_name = 'User ABC'
+    owner_namespace = 'abc'
+    response = client.post(
+        '/users/register',
+        json={'name': owner_name, 'user_namespace': owner_namespace})
+    owner_id = json.loads(response.content)['id']
+
+    # register asset types
+    asset_type_1_id = 'file'
+    asset_type_1_description = 'Data assets provided as downloadable file'
+
+    client.post(
+        '/asset_types/register',
+        json={'id': asset_type_1_id, 'description': asset_type_1_description})
+
+    asset_type_2_id = 'api'
+    asset_type_2_description = \
+        'Data that is provided via a well defined application programming ' \
+        'interface'
+
+    client.post(
+        '/asset_types/register',
+        json={'id': asset_type_2_id, 'description': asset_type_2_description})
+
+    # register assets
+    response = client.post(
+        '/assets/register',
+        json={'owner_id': owner_id, 'asset_type': asset_type_1_id})
+
+    asset_1_id = json.loads(response.content)['id']
+    asset_1_topio_id = TOPIO_ID_SCHEMA.format(**{
+        'owner_namespace': owner_namespace,
+        'asset_id': asset_1_id,
+        'asset_type': asset_type_1_id})
+
+    asset_2_local_id = 'hdfs://foo.bar.ttl'
+    asset_2_description = 'A Turtle HDFS file'
+    response = client.post(
+        '/assets/register',
+        json={
+            'owner_id': owner_id,
+            'asset_type': asset_type_1_id,
+            'local_id': asset_2_local_id,
+            'description': asset_2_description})
+
+    asset_2_id = json.loads(response.content)['id']
+    asset_2_topio_id = TOPIO_ID_SCHEMA.format(**{
+        'owner_namespace': owner_namespace,
+        'asset_id': asset_2_id,
+        'asset_type': asset_type_1_id})
+
+    asset_3_local_id = 'http://topio.market:7777/api'
+    response = client.post(
+        '/assets/register',
+        json={
+            'owner_id': owner_id,
+            'asset_type': asset_type_2_id,
+            'local_id': asset_3_local_id})
+
+    asset_3_id = json.loads(response.content)['id']
+    asset_3_topio_id = TOPIO_ID_SCHEMA.format(**{
+        'owner_namespace': owner_namespace,
+        'asset_id': asset_3_id,
+        'asset_type': asset_type_2_id})
+
+    response = client.get(
+        '/assets/',
+        json={'user_id': owner_id})
+
+    assert response.status_code == 200
+
+    # [
+    #   {
+    #     "local_id":null,
+    #     "owner_id":1,
+    #     "asset_type":"file",
+    #     "description":null,
+    #     "id":1,
+    #     "topio_id":"topio.abc.1.file"
+    #   },
+    #   {
+    #     "local_id":"hdfs://foo.bar.ttl",
+    #     "owner_id":1,
+    #     "asset_type":"file",
+    #     "description":"A Turtle HDFS file",
+    #     "id":2,
+    #     "topio_id":"topio.abc.2.file"
+    #   },
+    #   {
+    #     "local_id":"http://topio.market:7777/api",
+    #     "owner_id":1,
+    #     "asset_type":"api",
+    #     "description":null,
+    #     "id":3,
+    #     "topio_id":"topio.abc.3.api"
+    #   }
+    # ]
+    results = json.loads(response.content)
+
+    # asset 1 info
+    tmp_res = list(filter(lambda d: d['id'] == asset_1_id, results))
+    assert len(tmp_res) == 1
+    tmp_res = tmp_res[0]
+    assert tmp_res['local_id'] is None
+    assert tmp_res['owner_id'] == owner_id
+    assert tmp_res['asset_type'] == asset_type_1_id
+    assert tmp_res['description'] is None
+    assert tmp_res['topio_id'] == asset_1_topio_id
+
+    # asset 2 info
+    tmp_res = list(filter(lambda d: d['id'] == asset_2_id, results))
+    assert len(tmp_res) == 1
+    tmp_res = tmp_res[0]
+    assert tmp_res['local_id'] == asset_2_local_id
+    assert tmp_res['owner_id'] == owner_id
+    assert tmp_res['asset_type'] == asset_type_1_id
+    assert tmp_res['description'] == asset_2_description
+    assert tmp_res['topio_id'] == asset_2_topio_id
+
+    # asset 3 info
+    tmp_res = list(filter(lambda d: d['id'] == asset_3_id, results))
+    assert len(tmp_res) == 1
+    tmp_res = tmp_res[0]
+    assert tmp_res['local_id'] == asset_3_local_id
+    assert tmp_res['owner_id'] == owner_id
+    assert tmp_res['asset_type'] == asset_type_2_id
+    assert tmp_res['description'] is None
+    assert tmp_res['topio_id'] == asset_3_topio_id
