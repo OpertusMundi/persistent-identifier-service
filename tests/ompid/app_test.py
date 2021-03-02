@@ -43,7 +43,7 @@ def test_users_register(postgresql: connection):
         json={'name': user_name, 'user_namespace': user_namespace})
 
     # no errors were raised
-    assert response.status_code == 200
+    assert response.status_code == 201
 
     # user data can be found in the database
     user_id: int = json.loads(response.content)['id']
@@ -55,6 +55,14 @@ def test_users_register(postgresql: connection):
     results = cur.fetchall()
     cur.close()
     assert len(results) == 1
+
+    # existing user ---------------------------------------
+    response = client.post(
+        '/users/register',
+        json={'name': user_name, 'user_namespace': user_namespace})
+
+    # no errors were raised
+    assert response.status_code == 200
 
     # user with broken namespace (contains whitespace) ----
     user_name = 'User DEF'
@@ -117,7 +125,7 @@ def test_asset_types_register(postgresql: connection):
         json={'id': asset_type_id, 'description': asset_type_description}
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 201
 
     cur: cursor = postgresql.cursor()
     cur.execute(
@@ -127,6 +135,14 @@ def test_asset_types_register(postgresql: connection):
     cur.close()
     assert len(results) == 1
     assert results[0][1] == asset_type_description
+
+    # existing asset type registration
+    response = client.post(
+        '/asset_types/register',
+        json={'id': asset_type_id, 'description': asset_type_description}
+    )
+
+    assert response.status_code == 200
 
     # registration of asset type with broken asset type ID (contains spaces)
     asset_type_id = 'this is broken'
@@ -407,6 +423,18 @@ def test_assets_topio_id(postgresql: connection):
         'owner_namespace': owner_namespace,
         'asset_id': asset_2_id,
         'asset_type': asset_type_id})
+
+    # Calling /assets/topio_id for non-existent asset registration should
+    # return an error with 404 status code
+    response = client.get(
+        '/assets/topio_id',
+        json={
+            'owner_id': 0,
+            'asset_type': asset_type_id,
+            'local_id': asset_2_local_id})
+
+    assert response.status_code == 404
+    assert response.content == b'No topio ID found for the given parameters'
 
 
 def test_assets_custom_id(postgresql: connection):
