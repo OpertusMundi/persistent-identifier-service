@@ -130,7 +130,9 @@ async def register_asset(topio_asset: TopioAssetCreate, db: Session = Depends(ge
 
 @app.get('/assets/topio_id', response_model=str, responses={404: {"model": str}})
 async def get_topio_id(
-        asset_info: TopioAssetCreate,
+        owner_id: int,
+        asset_type: str, 
+        local_id: str,
         db: Session = Depends(get_db)):
     """
     Returns the topio ID for a given asset identified by
@@ -138,23 +140,19 @@ async def get_topio_id(
     - the asset type
     - the asset's local ID (e.g. hdfs://foo/bar, postgresql://user:pw@dbhost/db)
 
-    :param asset_info: basic asset information which has to comprise the asset
-        owner ID, the asset type and the asset's local ID
+    :param owner_id: the asset owner ID
+    :param asset_type: the asset type
+    :param local_id: the asset's local ID
     :param db: database session (will be provided by FastAPI's dependency
         injection mechanism.
     :return: A string containing the topio ID of the respective asset
     """
 
-    if asset_info.local_id is None:
-        raise HTTPException(
-            status_code=400,
-            detail='No asset local ID provided')
-
     asset = db\
         .query(TopioAssetORM)\
-        .filter(TopioAssetORM.owner_id == asset_info.owner_id,
-                TopioAssetORM.asset_type == asset_info.asset_type,
-                TopioAssetORM.local_id == asset_info.local_id)\
+        .filter(TopioAssetORM.owner_id == owner_id,
+                TopioAssetORM.asset_type == asset_type,
+                TopioAssetORM.local_id == local_id)\
         .first()
 
     if asset is None:

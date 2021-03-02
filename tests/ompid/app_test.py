@@ -396,21 +396,22 @@ def test_assets_topio_id(postgresql: connection):
     asset_2_id = json.loads(response.content)['id']
     del response
 
-    # Calling /assets/topio_id with an undefined local ID should always return
-    # a client error
+    # Calling /assets/topio_id with an undefined parameter
     response = client.get(
         '/assets/topio_id',
-        json={
+        params={
             'owner_id': owner_id,
-            'asset_type': asset_type_id})
+            'asset_type': asset_type_id,
+            'local_id': None})
 
-    assert response.status_code == 400
+    # should cause a client error 422 (Unprocessable Entity)...
+    assert response.status_code == 422
 
     # Calling /assets/topio_id providing a local ID should return the correct
     # result
     response = client.get(
         '/assets/topio_id',
-        json={
+        params={
             'owner_id': owner_id,
             'asset_type': asset_type_id,
             'local_id': asset_2_local_id})
@@ -428,7 +429,7 @@ def test_assets_topio_id(postgresql: connection):
     # return an error with 404 status code
     response = client.get(
         '/assets/topio_id',
-        json={
+        params={
             'owner_id': 0,
             'asset_type': asset_type_id,
             'local_id': asset_2_local_id})
