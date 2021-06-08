@@ -135,3 +135,9 @@ dmypy.json
 
 # settings files
 settings.yml
+
+# secrets
+secrets/
+
+# Docker
+docker-compose.yml

@@ -1,0 +1,7 @@
+.git
+tests
+logs
+settings.yml
+secrets
+docker-compose.yml
+LICENSE
