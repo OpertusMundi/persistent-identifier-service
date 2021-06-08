@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='persistent-identifier-service',
-    version='0.0.1',
+    version='0.1.0',
     packages=[
         'ompid', 'ompid.db', 'ompid.models'
     ],
