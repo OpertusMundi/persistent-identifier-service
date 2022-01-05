@@ -1,5 +1,7 @@
 import os
 from typing import List
+import logging
+import logging.config
 
 import yaml
 from fastapi import FastAPI, Response, HTTPException
@@ -12,6 +14,9 @@ from sqlalchemy.orm import Session
 from ompid.models import Base, TopioUser, TopioUserCreate, TopioUserORM, \
     TopioAssetType, TopioAssetTypeORM, TopioAsset, TopioAssetORM, \
     TopioAssetCreate, TopioUserQuery
+
+logging.config.fileConfig(os.getenv('LOGGING_FILE_CONFIG', './logging.conf'))
+logger = logging.getLogger(__name__)
 
 
 def load_default_configuration():

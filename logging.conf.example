@@ -1,0 +1,36 @@
+# vim: set syntax=dosini:
+
+[loggers]
+keys = root, ompid
+
+[handlers]
+keys = console, file
+
+[formatters]
+keys = simple
+
+[logger_root]
+level = INFO
+handlers = file
+
+[logger_ompid]
+level = DEBUG
+handlers = file
+qualname = ompid
+propagate = 0
+
+[handler_console]
+class = StreamHandler
+level = DEBUG
+formatter = simple
+args = (sys.stderr,)
+
+[handler_file]
+class = FileHandler
+level = WARNING
+formatter = simple
+args = ('/tmp/ompid.log',)
+
+[formatter_simple]
+format = %(asctime)s - %(name)s - %(levelname)s - %(message)s
+datefmt =
