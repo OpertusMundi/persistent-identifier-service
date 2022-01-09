@@ -12,7 +12,7 @@ setup(
     author_email='',
     description='',
     install_requires=[
-        'fastapi==0.55.1',
+        'fastapi==0.65.2',
         'uvicorn==0.12.3',
         'SQLAlchemy==1.3.17',
         'PyYAML==5.4',
