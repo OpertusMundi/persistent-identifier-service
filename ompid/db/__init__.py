@@ -14,7 +14,8 @@ def build_postgresql_url(settings):
 
 engine = create_engine(
     build_postgresql_url(ompid.load_default_configuration()),
-    echo=True)
+    echo=True,
+    pool_pre_ping=True)
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
