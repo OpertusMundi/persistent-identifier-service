@@ -135,9 +135,13 @@ dmypy.json
 
 # settings files
 settings.yml
+logging*.conf
 
 # secrets
 secrets/
 
 # Docker
 docker-compose.yml
+
+# Logs
+/logs/
