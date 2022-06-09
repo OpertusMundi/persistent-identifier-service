@@ -10,6 +10,7 @@ from fastapi.params import Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
+from starlette import status
 
 from ompid.models import Base, TopioUser, TopioUserCreate, TopioUserORM, \
     TopioAssetType, TopioAssetTypeORM, TopioAsset, TopioAssetORM, \
@@ -68,10 +69,12 @@ async def register_user(topio_user: TopioUserCreate, db: Session = Depends(get_d
         # interfering here to really log errors which are otherwise not reported
         # by FastAPI
         logger.error(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     topio_user_json = jsonable_encoder(topio_user_orm)
-    return JSONResponse(status_code=201, content=topio_user_json)
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED, content=topio_user_json)
 
 
 @app.get('/users/{topio_user_id}', response_model=TopioUser)
