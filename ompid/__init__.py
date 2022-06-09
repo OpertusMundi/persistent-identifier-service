@@ -104,22 +104,34 @@ async def get_user_info(topio_user_id: int, db: Session = Depends(get_db)):
 async def register_asset_type(
         topio_asset_type: TopioAssetType, db: Session = Depends(get_db)):
 
-    topio_asset_type_orm = (
-        db
-        .query(TopioAssetTypeORM)
-        .filter(and_(TopioAssetTypeORM.id == topio_asset_type.id, TopioAssetTypeORM.description == topio_asset_type.description))
-        .first()
-    )
+    try:
+        topio_asset_type_orm = (
+            db
+            .query(TopioAssetTypeORM)
+            .filter(and_(TopioAssetTypeORM.id == topio_asset_type.id, TopioAssetTypeORM.description == topio_asset_type.description))
+            .first()
+        )
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e))
 
-    if not topio_asset_type_orm is None:
+    if topio_asset_type_orm is not None:
         return topio_asset_type_orm
 
     topio_asset_type_orm = TopioAssetTypeORM(
         id=topio_asset_type.id, description=topio_asset_type.description)
 
-    db.add(topio_asset_type_orm)
-    db.commit()
-    db.refresh(topio_asset_type_orm)
+    try:
+        db.add(topio_asset_type_orm)
+        db.commit()
+        db.refresh(topio_asset_type_orm)
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e))
 
     topio_asset_type_json = jsonable_encoder(topio_asset_type_orm)
     return JSONResponse(status_code=201, content=topio_asset_type_json)

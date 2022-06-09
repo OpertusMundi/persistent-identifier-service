@@ -33,7 +33,7 @@ def _init_test_client(postgresql: connection) -> TestClient:
     return TestClient(app)
 
 
-def _init_broken_test_client2(postgresql: connection) -> TestClient:
+def _init_broken_test_client(postgresql: connection) -> TestClient:
     async def get_mock_db():
         #                   will be broken due to missing engine -v
         MockSessionLocal = \
@@ -172,7 +172,7 @@ def test_users_info_error_cases(postgresql: connection):
     assert response.status_code == status.HTTP_404_NOT_FOUND
     assert len(response.content) > 20
 
-    client = _init_broken_test_client2(postgresql)
+    client = _init_broken_test_client(postgresql)
 
     response = client.get(f'/users/{non_existing_user_id}')
 
@@ -230,6 +230,24 @@ def test_asset_types_register(postgresql: connection):
     results = cur.fetchall()
     cur.close()
     assert len(results) == 0
+
+
+def test_asset_types_register_error_cases(postgresql: connection):
+    client = _init_broken_test_client(postgresql)
+
+    asset_type_id = 'some_asset_type'
+    asset_type_description = \
+        'Dummy asset type that should not be created as the client ' \
+        'connection is broken'
+
+    response = client.post(
+        '/asset_types/register',
+        json={'id': asset_type_id, 'description': asset_type_description})
+
+    print(response.status_code)
+    print(response.content)
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
 
 
 def test_asset_types_info(postgresql: connection):
