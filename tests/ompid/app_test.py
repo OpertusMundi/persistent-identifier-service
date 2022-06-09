@@ -3,6 +3,7 @@ import json
 from pytest_postgresql.compat import connection, cursor
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from starlette import status
 from starlette.testclient import TestClient
 
 import ompid
@@ -87,6 +88,39 @@ def test_users_register(postgresql: connection):
     results = cur.fetchall()
     cur.close()
     assert len(results) == 0
+
+
+def test_users_register_error_cases(postgresql: connection):
+    """
+    We found out that certain error cases are not logged by FastAPI which is why
+    we are raising HTTPExpceptions manually whenever things went wrong to get
+    hold of the underlying exception and log it.
+    """
+    client = _init_test_client(postgresql)
+
+    # register two users with same namespace should result in a 500 HTTP status
+    # code with a non-empty HTTP payload
+    user_1_name = 'User 1'
+    user_2_name = 'User 2'
+    user_namespace = 'abc'
+
+    response = client.post(
+        '/users/register',
+        json={'name': user_1_name, 'user_namespace': user_namespace})
+
+    # In the first round everything goes well
+    assert response.status_code == status.HTTP_201_CREATED
+    assert len(response.content) > 20
+
+    # Trying to register another user with the same namespace should fail and
+    # the HTTP response should clearly state what went wrong
+    response = client.post(
+        '/users/register',
+        json={'name': user_2_name, 'user_namespace': user_namespace})
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    print(response.content)
+    assert len(response.content) > 20
 
 
 def test_users_info(postgresql: connection):

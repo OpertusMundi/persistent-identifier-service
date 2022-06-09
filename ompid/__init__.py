@@ -54,15 +54,21 @@ async def register_user(topio_user: TopioUserCreate, db: Session = Depends(get_d
         .first()
     )
 
-    if not topio_user_orm is None:
+    if topio_user_orm is not None:
         return topio_user_orm
 
     topio_user_orm = TopioUserORM(
         name=topio_user.name, user_namespace=topio_user.user_namespace)
 
-    db.add(topio_user_orm)
-    db.commit()
-    db.refresh(topio_user_orm)
+    try:
+        db.add(topio_user_orm)
+        db.commit()
+        db.refresh(topio_user_orm)
+    except Exception as e:
+        # interfering here to really log errors which are otherwise not reported
+        # by FastAPI
+        logger.error(e)
+        raise HTTPException(status_code=500, detail=str(e))
 
     topio_user_json = jsonable_encoder(topio_user_orm)
     return JSONResponse(status_code=201, content=topio_user_json)
