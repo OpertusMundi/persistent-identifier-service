@@ -274,6 +274,24 @@ def test_asset_types_info(postgresql: connection):
     assert asset_info_data['description'] == asset_type_description
 
 
+def test_asset_types_info_error_cases(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    non_existing_asset_type_id = 666
+
+    response = client.get(f'/asset_types/{non_existing_asset_type_id}')
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert len(response.content) > 20
+
+    client = _init_broken_test_client(postgresql)
+
+    response = client.get(f'/asset_types/{non_existing_asset_type_id}')
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
+
+
 def test_asset_types_list(postgresql: connection):
     client = _init_test_client(postgresql)
 

@@ -141,12 +141,24 @@ async def register_asset_type(
 async def get_asset_namespace_info(
         topio_asset_type_id: str, db: Session = Depends(get_db)):
 
-    topio_asset_type_orm = db\
-        .query(TopioAssetTypeORM)\
-        .filter(TopioAssetTypeORM.id == topio_asset_type_id)\
-        .first()
+    try:
+        topio_asset_type_orm = db\
+            .query(TopioAssetTypeORM)\
+            .filter(TopioAssetTypeORM.id == topio_asset_type_id)\
+            .first()
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e))
 
-    return topio_asset_type_orm
+    if topio_asset_type_orm is not None:
+        return topio_asset_type_orm
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f'Asset type with ID {topio_asset_type_id} not found')
 
 
 @app.get('/asset_types/', response_model=List[TopioAssetType])
