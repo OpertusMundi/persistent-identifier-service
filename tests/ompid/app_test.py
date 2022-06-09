@@ -354,6 +354,15 @@ def test_asset_types_list(postgresql: connection):
     assert assets_list[2]['description'] == asset_type_3_description
 
 
+def test_asset_types_list_error_cases(postgresql: connection):
+    client = _init_broken_test_client(postgresql)
+
+    response = client.get('/asset_types/')
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
+
+
 def test_assets_register(postgresql: connection):
     client = _init_test_client(postgresql)
 

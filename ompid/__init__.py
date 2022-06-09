@@ -163,7 +163,16 @@ async def get_asset_namespace_info(
 
 @app.get('/asset_types/', response_model=List[TopioAssetType])
 async def get_asset_types(db: Session = Depends(get_db)):
-    return db.query(TopioAssetTypeORM).all()
+    try:
+        res = db.query(TopioAssetTypeORM).all()
+    except Exception as e:
+        logger.error(e)
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e))
+
+    return res
 
 
 @app.post('/assets/register', response_model=TopioAsset)
