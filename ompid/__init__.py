@@ -79,8 +79,23 @@ async def register_user(topio_user: TopioUserCreate, db: Session = Depends(get_d
 
 @app.get('/users/{topio_user_id}', response_model=TopioUser)
 async def get_user_info(topio_user_id: int, db: Session = Depends(get_db)):
-    topio_user_orm = \
-        db.query(TopioUserORM).filter(TopioUserORM.id == topio_user_id).first()
+    try:
+        topio_user_orm = \
+            db.query(TopioUserORM).filter(TopioUserORM.id == topio_user_id).first()
+    except Exception as e:
+        # interfering here to really log errors which are otherwise not reported
+        # by FastAPI
+        logger.error(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+    if topio_user_orm is None:
+        err_msg = f'User with user ID {topio_user_id} could not be found'
+        logger.warning(err_msg)
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=err_msg)
 
     return topio_user_orm
 

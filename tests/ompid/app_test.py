@@ -33,6 +33,21 @@ def _init_test_client(postgresql: connection) -> TestClient:
     return TestClient(app)
 
 
+def _init_broken_test_client2(postgresql: connection) -> TestClient:
+    async def get_mock_db():
+        #                   will be broken due to missing engine -v
+        MockSessionLocal = \
+            sessionmaker(autocommit=False, autoflush=False, bind=None)
+        db = MockSessionLocal()
+        db.close()
+
+        yield db
+
+    app.dependency_overrides[ompid.get_db] = get_mock_db
+
+    return TestClient(app)
+
+
 def test_users_register(postgresql: connection):
     client = _init_test_client(postgresql)
 
@@ -145,6 +160,24 @@ def test_users_info(postgresql: connection):
     assert user_info_data['name'] == user_name
     assert user_info_data['user_namespace'] == user_namespace
     assert user_info_data['id'] == user_id
+
+
+def test_users_info_error_cases(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    non_existing_user_id = 666
+
+    response = client.get(f'/users/{non_existing_user_id}')
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert len(response.content) > 20
+
+    client = _init_broken_test_client2(postgresql)
+
+    response = client.get(f'/users/{non_existing_user_id}')
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
 
 
 def test_asset_types_register(postgresql: connection):
