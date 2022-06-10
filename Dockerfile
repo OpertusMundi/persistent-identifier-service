@@ -11,7 +11,13 @@ RUN apt-get update && apt-get install -y libpq5 \
 
 COPY --from=build-stage-1 /usr/local/ /usr/local/
 
-RUN pip3 install --no-cache-dir requests==2.25.1 PyYAML==5.3.1 pydantic==1.5.1 fastapi==0.55.1 uvicorn==0.12.3 
+RUN pip3 install --no-cache-dir \
+    requests==2.25.1 \
+    PyYAML==5.3.1 \
+    pydantic==1.5.1 \
+    fastapi==0.55.1 \
+    uvicorn==0.12.3 \
+    rfc5424-logging-handler==1.4.3
 
 RUN mkdir /usr/local/persistent-identifier-service 
 WORKDIR /usr/local/persistent-identifier-service

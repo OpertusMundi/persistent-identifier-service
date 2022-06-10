@@ -1,0 +1,35 @@
+# vim: set syntax=dosini:
+
+[loggers]
+keys = root, ompid
+
+[handlers]
+keys = console, syslog
+
+[formatters]
+keys = simple
+
+[logger_root]
+level = INFO
+handlers = syslog
+
+[logger_ompid]
+level = DEBUG
+handlers = syslog, console
+qualname = ompid
+propagate = 0
+
+[handler_console]
+class = StreamHandler
+level = DEBUG
+formatter = simple
+args = (sys.stderr,)
+
+[handler_syslog]
+class = rfc5424logging.Rfc5424SysLogHandler
+args = ((os.getenv('RSYSLOG_HOST', 'rsyslog'), 514), handlers.SysLogHandler.LOG_LOCAL7, handlers.socket.SOCK_STREAM, 2, True, None, 'pid', None, None, '18060', True)
+level = INFO
+
+[formatter_simple]
+format = %(asctime)s - %(name)s - %(levelname)s - %(message)s
+datefmt =

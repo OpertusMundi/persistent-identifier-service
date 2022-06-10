@@ -44,7 +44,7 @@ app = FastAPI()
 def init_tables():
     import ompid.db
     Base.metadata.create_all(ompid.db.engine)
-
+    logger.info("Initialized database")
 
 @app.post('/users/register', response_model=TopioUser, responses={201: {"model": TopioUser}})
 async def register_user(topio_user: TopioUserCreate, db: Session = Depends(get_db)):
