@@ -3,6 +3,7 @@ import json
 from pytest_postgresql.compat import connection, cursor
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from starlette import status
 from starlette.testclient import TestClient
 
 import ompid
@@ -28,6 +29,21 @@ def _init_test_client(postgresql: connection) -> TestClient:
 
     app.dependency_overrides[ompid.get_db] = get_mock_db
     Base.metadata.create_all(mock_engine)
+
+    return TestClient(app)
+
+
+def _init_broken_test_client(postgresql: connection) -> TestClient:
+    async def get_mock_db():
+        #                   will be broken due to missing engine -v
+        MockSessionLocal = \
+            sessionmaker(autocommit=False, autoflush=False, bind=None)
+        db = MockSessionLocal()
+        db.close()
+
+        yield db
+
+    app.dependency_overrides[ompid.get_db] = get_mock_db
 
     return TestClient(app)
 
@@ -89,6 +105,39 @@ def test_users_register(postgresql: connection):
     assert len(results) == 0
 
 
+def test_users_register_error_cases(postgresql: connection):
+    """
+    We found out that certain error cases are not logged by FastAPI which is why
+    we are raising HTTPExpceptions manually whenever things went wrong to get
+    hold of the underlying exception and log it.
+    """
+    client = _init_test_client(postgresql)
+
+    # register two users with same namespace should result in a 500 HTTP status
+    # code with a non-empty HTTP payload
+    user_1_name = 'User 1'
+    user_2_name = 'User 2'
+    user_namespace = 'abc'
+
+    response = client.post(
+        '/users/register',
+        json={'name': user_1_name, 'user_namespace': user_namespace})
+
+    # In the first round everything goes well
+    assert response.status_code == status.HTTP_201_CREATED
+    assert len(response.content) > 20
+
+    # Trying to register another user with the same namespace should fail and
+    # the HTTP response should clearly state what went wrong
+    response = client.post(
+        '/users/register',
+        json={'name': user_2_name, 'user_namespace': user_namespace})
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    print(response.content)
+    assert len(response.content) > 20
+
+
 def test_users_info(postgresql: connection):
     client = _init_test_client(postgresql)
 
@@ -111,6 +160,24 @@ def test_users_info(postgresql: connection):
     assert user_info_data['name'] == user_name
     assert user_info_data['user_namespace'] == user_namespace
     assert user_info_data['id'] == user_id
+
+
+def test_users_info_error_cases(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    non_existing_user_id = 666
+
+    response = client.get(f'/users/{non_existing_user_id}')
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert len(response.content) > 20
+
+    client = _init_broken_test_client(postgresql)
+
+    response = client.get(f'/users/{non_existing_user_id}')
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
 
 
 def test_asset_types_register(postgresql: connection):
@@ -165,6 +232,24 @@ def test_asset_types_register(postgresql: connection):
     assert len(results) == 0
 
 
+def test_asset_types_register_error_cases(postgresql: connection):
+    client = _init_broken_test_client(postgresql)
+
+    asset_type_id = 'some_asset_type'
+    asset_type_description = \
+        'Dummy asset type that should not be created as the client ' \
+        'connection is broken'
+
+    response = client.post(
+        '/asset_types/register',
+        json={'id': asset_type_id, 'description': asset_type_description})
+
+    print(response.status_code)
+    print(response.content)
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
+
+
 def test_asset_types_info(postgresql: connection):
     client = _init_test_client(postgresql)
 
@@ -187,6 +272,24 @@ def test_asset_types_info(postgresql: connection):
 
     assert asset_info_data['id'] == asset_type_id
     assert asset_info_data['description'] == asset_type_description
+
+
+def test_asset_types_info_error_cases(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    non_existing_asset_type_id = 666
+
+    response = client.get(f'/asset_types/{non_existing_asset_type_id}')
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert len(response.content) > 20
+
+    client = _init_broken_test_client(postgresql)
+
+    response = client.get(f'/asset_types/{non_existing_asset_type_id}')
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
 
 
 def test_asset_types_list(postgresql: connection):
@@ -249,6 +352,15 @@ def test_asset_types_list(postgresql: connection):
 
     assert assets_list[2]['id'] == asset_type_3_id
     assert assets_list[2]['description'] == asset_type_3_description
+
+
+def test_asset_types_list_error_cases(postgresql: connection):
+    client = _init_broken_test_client(postgresql)
+
+    response = client.get('/asset_types/')
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
 
 
 def test_assets_register(postgresql: connection):
@@ -356,6 +468,43 @@ def test_assets_register(postgresql: connection):
     assert results[0][4] is None
 
 
+def test_assets_register_error_cases(postgresql: connection):
+    # A request with wrong foreign key IDs should result in a 400 BAD REQUEST
+    # status code
+    client = _init_test_client(postgresql)
+    asset_1_local_id = 'hdfs://foo.bar.ttl'
+    asset_1_description = 'A Turtle HDFS file'
+    non_existent_owner_id = 666
+    non_existent_asset_type_id = 777
+
+    response = client.post(
+        '/assets/register',
+        json={
+            'local_id': asset_1_local_id,
+            'owner_id': non_existent_owner_id,
+            'asset_type': non_existent_asset_type_id,
+            'description': asset_1_description})
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert len(response.content) > 20
+
+    # Any other error is considered as server side error and should result in
+    # a 500 INTERNAL SERVER ERROR return code
+
+    client = _init_broken_test_client(postgresql)
+
+    response = client.post(
+        '/assets/register',
+        json={
+            'local_id': asset_1_local_id,
+            'owner_id': non_existent_owner_id,
+            'asset_type': non_existent_asset_type_id,
+            'description': asset_1_description})
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
+
+
 def test_assets_topio_id(postgresql: connection):
     client = _init_test_client(postgresql)
 
@@ -434,8 +583,38 @@ def test_assets_topio_id(postgresql: connection):
             'asset_type': asset_type_id,
             'local_id': asset_2_local_id})
 
-    assert response.status_code == 404
-    assert response.content == b'No topio ID found for the given parameters'
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert len(response.content) > 20
+
+
+def test_assets_topio_id_error_cases(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    non_existent_owner_id = 666
+    non_existent_asset_type_id = 777
+    non_existent_local_id = 'hdfs:///non/existent'
+
+    response = client.get(
+        '/assets/topio_id',
+        params={
+            'owner_id': non_existent_owner_id,
+            'asset_type': non_existent_asset_type_id,
+            'local_id': non_existent_local_id})
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert len(response.content) > 20
+
+    client = _init_broken_test_client(postgresql)
+
+    response = client.get(
+        '/assets/topio_id',
+        params={
+            'owner_id': non_existent_owner_id,
+            'asset_type': non_existent_asset_type_id,
+            'local_id': non_existent_local_id})
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
 
 
 def test_assets_custom_id(postgresql: connection):
@@ -494,7 +673,8 @@ def test_assets_custom_id(postgresql: connection):
         '/assets/custom_id',
         json={'topio_id': asset_1_topio_id})
 
-    assert response.status_code == 404  # as there is no local ID for asset 1
+    # as there is no local ID for asset 1
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
     del response
 
@@ -502,10 +682,31 @@ def test_assets_custom_id(postgresql: connection):
         '/assets/custom_id',
         json={'topio_id': asset_2_topio_id})
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     returned_local_id = json.loads(response.content)
     assert returned_local_id == asset_2_local_id
+
+
+def test_assets_custom_id_error_cases(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    non_existent_topio_id = 'a.b.c'
+
+    response = client.get(
+        '/assets/custom_id',
+        json={'topio_id': non_existent_topio_id})
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert len(response.content) > 20
+
+    client = _init_broken_test_client(postgresql)
+    response = client.get(
+        '/assets/custom_id',
+        json={'topio_id': non_existent_topio_id})
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
 
 
 def test_assets_list(postgresql: connection):
@@ -640,3 +841,19 @@ def test_assets_list(postgresql: connection):
     assert tmp_res['asset_type'] == asset_type_2_id
     assert tmp_res['description'] is None
     assert tmp_res['topio_id'] == asset_3_topio_id
+
+
+def test_assets_list_error_cases(postgresql: connection):
+    client = _init_broken_test_client(postgresql)
+
+    non_existent_owner_id = 666
+
+    response = client.get(
+        '/assets/',
+        json={'user_id': non_existent_owner_id})
+
+    print(response.status_code)
+    print(response.content)
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
