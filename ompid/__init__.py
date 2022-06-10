@@ -254,17 +254,25 @@ async def get_custom_id(query: dict, db: Session = Depends(get_db)):
     if topio_id is None:
         asset = None
     else:
-        asset = db\
-            .query(TopioAssetORM)\
-            .filter(
-                TopioAssetORM.topio_id == topio_id,
-                TopioAssetORM.local_id != None)\
-            .first()
+        try:
+            asset = db\
+                .query(TopioAssetORM)\
+                .filter(
+                    TopioAssetORM.topio_id == topio_id,
+                    TopioAssetORM.local_id != None)\
+                .first()
+        except Exception as e:
+            logger.error(e)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e))
 
     if asset is None:
+        err_msg = f'No custom ID found for topio ID {topio_id}'
+        logger.warning(err_msg)
         raise HTTPException(
-            404,
-            f'No custom ID found for topio ID {topio_id}')
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=err_msg)
 
     return asset.local_id
 

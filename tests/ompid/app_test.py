@@ -673,7 +673,8 @@ def test_assets_custom_id(postgresql: connection):
         '/assets/custom_id',
         json={'topio_id': asset_1_topio_id})
 
-    assert response.status_code == 404  # as there is no local ID for asset 1
+    # as there is no local ID for asset 1
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
     del response
 
@@ -681,10 +682,31 @@ def test_assets_custom_id(postgresql: connection):
         '/assets/custom_id',
         json={'topio_id': asset_2_topio_id})
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     returned_local_id = json.loads(response.content)
     assert returned_local_id == asset_2_local_id
+
+
+def test_assets_custom_id_error_cases(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    non_existent_topio_id = 'a.b.c'
+
+    response = client.get(
+        '/assets/custom_id',
+        json={'topio_id': non_existent_topio_id})
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert len(response.content) > 20
+
+    client = _init_broken_test_client(postgresql)
+    response = client.get(
+        '/assets/custom_id',
+        json={'topio_id': non_existent_topio_id})
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
 
 
 def test_assets_list(postgresql: connection):
