@@ -583,8 +583,38 @@ def test_assets_topio_id(postgresql: connection):
             'asset_type': asset_type_id,
             'local_id': asset_2_local_id})
 
-    assert response.status_code == 404
-    assert response.content == b'No topio ID found for the given parameters'
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert len(response.content) > 20
+
+
+def test_assets_topio_id_error_cases(postgresql: connection):
+    client = _init_test_client(postgresql)
+
+    non_existent_owner_id = 666
+    non_existent_asset_type_id = 777
+    non_existent_local_id = 'hdfs:///non/existent'
+
+    response = client.get(
+        '/assets/topio_id',
+        params={
+            'owner_id': non_existent_owner_id,
+            'asset_type': non_existent_asset_type_id,
+            'local_id': non_existent_local_id})
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert len(response.content) > 20
+
+    client = _init_broken_test_client(postgresql)
+
+    response = client.get(
+        '/assets/topio_id',
+        params={
+            'owner_id': non_existent_owner_id,
+            'asset_type': non_existent_asset_type_id,
+            'local_id': non_existent_local_id})
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
 
 
 def test_assets_custom_id(postgresql: connection):

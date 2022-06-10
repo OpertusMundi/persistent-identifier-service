@@ -4,7 +4,7 @@ import logging
 import logging.config
 
 import yaml
-from fastapi import FastAPI, Response, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.params import Depends
 from fastapi.responses import JSONResponse
@@ -222,15 +222,23 @@ async def get_topio_id(
     :return: A string containing the topio ID of the respective asset
     """
 
-    asset = db\
-        .query(TopioAssetORM)\
-        .filter(TopioAssetORM.owner_id == owner_id,
-                TopioAssetORM.asset_type == asset_type,
-                TopioAssetORM.local_id == local_id)\
-        .first()
+    try:
+        asset = db\
+            .query(TopioAssetORM)\
+            .filter(TopioAssetORM.owner_id == owner_id,
+                    TopioAssetORM.asset_type == asset_type,
+                    TopioAssetORM.local_id == local_id)\
+            .first()
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e))
 
     if asset is None:
-        return Response(status_code=404, content='No topio ID found for the given parameters')
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='No topio ID found for the given parameters')
 
     return asset.topio_id
 
