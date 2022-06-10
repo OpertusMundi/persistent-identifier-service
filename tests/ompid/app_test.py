@@ -841,3 +841,19 @@ def test_assets_list(postgresql: connection):
     assert tmp_res['asset_type'] == asset_type_2_id
     assert tmp_res['description'] is None
     assert tmp_res['topio_id'] == asset_3_topio_id
+
+
+def test_assets_list_error_cases(postgresql: connection):
+    client = _init_broken_test_client(postgresql)
+
+    non_existent_owner_id = 666
+
+    response = client.get(
+        '/assets/',
+        json={'user_id': non_existent_owner_id})
+
+    print(response.status_code)
+    print(response.content)
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20

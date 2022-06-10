@@ -279,7 +279,15 @@ async def get_custom_id(query: dict, db: Session = Depends(get_db)):
 
 @app.get('/assets/', response_model=List[TopioAsset])
 async def get_users_assets(user: TopioUserQuery, db: Session = Depends(get_db)):
-    return db\
-        .query(TopioAssetORM)\
-        .filter(TopioAssetORM.owner_id == user.user_id)\
-        .all()
+    try:
+        assets = db\
+            .query(TopioAssetORM)\
+            .filter(TopioAssetORM.owner_id == user.user_id)\
+            .all()
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e))
+
+    return assets
