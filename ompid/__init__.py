@@ -9,6 +9,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.params import Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy import and_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette import status
 
@@ -183,9 +184,20 @@ async def register_asset(topio_asset: TopioAssetCreate, db: Session = Depends(ge
         asset_type=topio_asset.asset_type,
         description=topio_asset.description)
 
-    db.add(topio_asset_orm)
-    db.commit()
-    db.refresh(topio_asset_orm)
+    try:
+        db.add(topio_asset_orm)
+        db.commit()
+        db.refresh(topio_asset_orm)
+    except IntegrityError as e:
+        logger.error(e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e))
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e))
 
     return topio_asset_orm
 

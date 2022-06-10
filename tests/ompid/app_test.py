@@ -468,6 +468,43 @@ def test_assets_register(postgresql: connection):
     assert results[0][4] is None
 
 
+def test_assets_register_error_cases(postgresql: connection):
+    # A request with wrong foreign key IDs should result in a 400 BAD REQUEST
+    # status code
+    client = _init_test_client(postgresql)
+    asset_1_local_id = 'hdfs://foo.bar.ttl'
+    asset_1_description = 'A Turtle HDFS file'
+    non_existent_owner_id = 666
+    non_existent_asset_type_id = 777
+
+    response = client.post(
+        '/assets/register',
+        json={
+            'local_id': asset_1_local_id,
+            'owner_id': non_existent_owner_id,
+            'asset_type': non_existent_asset_type_id,
+            'description': asset_1_description})
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert len(response.content) > 20
+
+    # Any other error is considered as server side error and should result in
+    # a 500 INTERNAL SERVER ERROR return code
+
+    client = _init_broken_test_client(postgresql)
+
+    response = client.post(
+        '/assets/register',
+        json={
+            'local_id': asset_1_local_id,
+            'owner_id': non_existent_owner_id,
+            'asset_type': non_existent_asset_type_id,
+            'description': asset_1_description})
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert len(response.content) > 20
+
+
 def test_assets_topio_id(postgresql: connection):
     client = _init_test_client(postgresql)
 
