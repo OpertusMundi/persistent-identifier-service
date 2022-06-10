@@ -157,9 +157,11 @@ async def get_asset_namespace_info(
         return topio_asset_type_orm
 
     else:
+        err_msg = f'Asset type with ID {topio_asset_type_id} not found'
+        logger.warning(err_msg)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Asset type with ID {topio_asset_type_id} not found')
+            detail=err_msg)
 
 
 @app.get('/asset_types/', response_model=List[TopioAssetType])
@@ -236,9 +238,11 @@ async def get_topio_id(
             detail=str(e))
 
     if asset is None:
+        err_msg = 'No topio ID found for the given parameters'
+        logger.warning(err_msg)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail='No topio ID found for the given parameters')
+            detail=err_msg)
 
     return asset.topio_id
 
