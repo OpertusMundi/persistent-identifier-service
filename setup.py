@@ -20,6 +20,6 @@ setup(
         'psycopg2==2.8.5',
         'pytest-postgresql==2.5.3',
         'pytest==6.2.2',
-        'requests==2.25.1',
+        'requests==2.31.0',
     ]
 )
